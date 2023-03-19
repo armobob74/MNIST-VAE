@@ -57,37 +57,10 @@ class VAE(nn.Module):
         return z
 
     def forward(self, x):
-        mean, logvar = self.encoder(x)
-        z = self.reparameterize(mean, logvar)
+        mu, logvar = self.encoder(x)
+        z = self.reparameterize(mu, logvar)
         x_recon = self.decoder(z)
-        return x_recon
-
-def train_vae_on_mnist(latent_dim=20, batch_size=128, num_epochs=10, learning_rate=1e-3):
-    train_dataset = MNIST(root='./data', train=True, transform=ToTensor(), download=True)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = VAE(latent_dim=latent_dim).to(device)
-
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    criterion = nn.BCELoss(reduction='sum')
-
-    model.train()
-    for epoch in range(num_epochs):
-        train_loss = 0
-        for batch_idx, (data, _) in tqdm(enumerate(train_loader), total=len(train_loader), desc=f"Epoch {epoch+1}/{num_epochs}"):
-            data = data.to(device)
-            optimizer.zero_grad()
-            recon_batch, mu, logvar = model(data)
-            loss = vae_loss(recon_batch, data, mu, logvar, criterion)
-            loss.backward()
-            train_loss += loss.item()
-            optimizer.step()
-
-        print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss/len(train_loader.dataset):.4f}")
-
-    torch.save(model.state_dict(), "vae_mnist.pth")
-
+        return x_recon, mu,logvar
 
 def vae_loss(recon_x, x, mu, logvar, criterion):
     BCE = criterion(recon_x, x)
@@ -95,14 +68,11 @@ def vae_loss(recon_x, x, mu, logvar, criterion):
     return BCE + KLD
 
 
-def generate_samples_from_vae(model_path="vae_mnist.pth", num_samples=10):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = VAE(latent_dim=20).to(device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
+def generate_samples_from_vae(model,device,latent_dim,num_samples=10,):
     model.eval()
 
     with torch.no_grad():
-        z = torch.randn(num_samples, 20).to(device)
+        z = torch.randn(num_samples, latent_dim).to(device)
         samples = model.decoder(z).cpu()
 
     import matplotlib.pyplot as plt
