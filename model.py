@@ -44,6 +44,24 @@ class Decoder(nn.Module):
         x = torch.sigmoid(self.conv3(z))
         return x
 
+class VAE(nn.Module):
+    def __init__(self, latent_dim):
+        super(VAE, self).__init__()
+        self.encoder = Encoder(latent_dim)
+        self.decoder = Decoder(latent_dim)
+
+    def reparameterize(self, mean, logvar):
+        std = torch.exp(0.5*logvar)
+        eps = torch.randn_like(std)
+        z = eps * std + mean
+        return z
+
+    def forward(self, x):
+        mean, logvar = self.encoder(x)
+        z = self.reparameterize(mean, logvar)
+        x_recon = self.decoder(z)
+        return x_recon
+
 def train_vae_on_mnist(latent_dim=20, batch_size=128, num_epochs=10, learning_rate=1e-3):
     train_dataset = MNIST(root='./data', train=True, transform=ToTensor(), download=True)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
